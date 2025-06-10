@@ -172,7 +172,7 @@
 	* Корпус пластиковый 120х100х40 мм для конструирования РЭА
 	* Источник бесперебойного питания 12 В-2 А
 	* Дисплей LCD1602C с I2C
-	* [Накладка на дисплей](https://gitflic.ru/project/vinantole/guardian/blob/?file=Панелька.3MF&branch=master)
+	* [Накладка на дисплей](Models/Панелька.3MF)
 	* Матричная клавиатура 3х4 механическая
 	* Зуммер
 	* Светодиодный модуль 0.23 Вт, Красный/Зелёный 
@@ -185,10 +185,10 @@
 * Датчики и комплектующие
 
     * Датчик широкого спектра газов MQ-2 Arduino (6 ШТ)
-	* [Корпус (низ) для MQ-2](https://gitflic.ru/project/vinantole/guardian/blob/?file=MQ2-Bottom-02.stl&branch=master)
-	* [Корпус (верх) для MQ-2](https://gitflic.ru/project/vinantole/guardian/blob/?file=MQ2-Top-02.stl&branch=master)
+	* [Корпус (низ) для MQ-2](Models/MQ2-Bottom-02.stl)
+	* [Корпус (верх) для MQ-2](Models/MQ2-Top-02.stl)
     * Инфракрасный датчик движения HC-SR501 для Arduino (3 ШТ)
-	* [Корпус для HC-SR501](https://gitflic.ru/project/vinantole/guardian/blob/?file=PIR45_angular.stl&branch=master)
+	* [Корпус для HC-SR501](Models/PIR45_angular.stl)
 	* Проводной магнитоконтактный датчик (геркон) двери (1 ШТ)
 	* Датчик уровня воды Ардуино (1 ШТ)
 	* Цифровой датчик температуры и влажности DHT22 (AM2302) (1 ШТ)
