@@ -122,10 +122,10 @@
 
 Пример:
 
-   * `SETsecretCode=1234`
-   * `SETphoneOperator=89123456789`
-   * `GETinfo` - выводит текущие настройки в Serial Monitor
-   * `GETeeprom` - выводит дамп EEPROM в Serial Monitor
+   * `SET secretCode=1234`
+   * `SET phoneOperator=89123456789`
+   * `GET info` - выводит текущие настройки в Serial Monitor
+   * `GET eeprom` - выводит дамп EEPROM в Serial Monitor
 
 #### Логика работы
 
