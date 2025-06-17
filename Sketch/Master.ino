@@ -5,11 +5,11 @@
 #include <SoftwareSerial.h>
 #include <DFPlayer_Mini_Mp3.h>
 
-String version = "1.2.2"; // Версия прошивки
+String version = "1.2.4"; // Версия прошивки
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-uint8_t iconLocked[8] = { 0b01110, 0b10001, 0b10001, 0b11111, 0b11011, 0b11011, 0b11111 };
-uint8_t iconUnlocked[8] = { 0b01110, 0b10000, 0b10000, 0b11111, 0b11011, 0b11011, 0b11111 };
+uint8_t iconLocked[8] = {0x0e, 0x11, 0x11, 0x1f, 0x1b, 0x1b, 0x1f};
+uint8_t iconUnlocked[8] = {0x0e, 0x10, 0x10, 0x1f, 0x1b, 0x1b, 0x1f};
 
 const uint8_t ROWS = 4;
 const uint8_t COLS = 3;
@@ -61,19 +61,17 @@ const unsigned long soundDuration = 300;
 unsigned long lastWaterLevelAlertTime = 0;
 const unsigned long waterLevelAlertInterval = 30 * 60 * 1000;
 
-const int dfPlayerRX = 11;
-const int dfPlayerTX = 10;
-const int gsmRX = 13;
-const int gsmTX = 12;
-SoftwareSerial dfPlayerSerial(dfPlayerRX, dfPlayerTX);
-SoftwareSerial gsmSerial(gsmRX, gsmTX);
+SoftwareSerial dfPlayerSerial(11, 10);
+SoftwareSerial sim800l(13, 12);
 
 void setup() {
     Serial.begin(115200);
     dfPlayerSerial.begin(9600);
     mp3_set_serial (dfPlayerSerial);
     mp3_set_volume (25);
-    gsmSerial.begin(115200);
+    sim800l.begin(9600);
+    sim800l.println("AT+CMGF=1");
+    sim800l.println("AT+CNMI=2,2,0,0,0");
     loadSettings();
     lcd.begin(16, 2);
     lcd.createChar(1, iconLocked);
@@ -99,11 +97,6 @@ void loop() {
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
         getSerialData();
-        if (gsmSerial.available()) {
-            char c = gsmSerial.read();
-            Serial.print("GSM800L: ");
-            Serial.println(c);
-        }
         if (Locked) {
             checkSiren();
             monitorAlarmSystem();
@@ -193,7 +186,18 @@ void showStartupMessage() {
     lcd.noBacklight();
 }
 
-void getSerialData() {
+void getSerialData() { 
+    /* События при входящих SMS */
+    // if (sim800l.available()) {
+    //     String inputSMS = sim800l.readStringUntil('\n');
+    //     if (sim800l.available()) {
+    //         String secondLine = sim800l.readStringUntil('\n');
+    //         Serial.println(secondLine);
+    //         if (secondLine.startsWith("UNLOCK")) {
+    //             showUnlockMessage();
+    //         }
+    //     }
+    // }
     if (Serial.available() > 0) {
         String inputData = Serial.readStringUntil('\n');
         inputData.trim();
@@ -530,8 +534,8 @@ void sendAlert(const char* message) {
     lcd.setCursor(0, 0);
     lcd.print(message);
     lcd.setCursor(6, 1);
-    //Serial.println(message); Дебаг
-    sendDataGSM(message);
+    SendSMS(phoneOperator, message);
+    
 }
 
 void monitorAlarmSystem() {
@@ -653,12 +657,14 @@ void checkAlarm() {
     }
 }
 
-void sendDataGSM(const char* message) {
-    gsmSerial.print("AT+CMGS=\"");
-    gsmSerial.print(phoneOperator);
-    gsmSerial.println("\"");
-    delay(100);
-    gsmSerial.println(message);
-    delay(100);
-    gsmSerial.write(26);
+void SendSMS(const char* phone, String message) {
+  sim800l.print("AT+CMGS=\"");
+  sim800l.print(phone);
+  sim800l.print("\"\r");
+  delay(300);
+  sim800l.print(message);
+  delay(300);
+  sim800l.print((char)26);
+  delay(300);
+  sim800l.println();
 }
