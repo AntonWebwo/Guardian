@@ -44,7 +44,6 @@ bool sirenActive = false;
 bool lightActive = false;
 bool alarmActive = false;
 
-const int buzzerPin = 9;
 unsigned long alarmStartTime = 0;
 const unsigned long alarmInterval = 500;
 const unsigned long soundDuration = 300;
@@ -68,12 +67,12 @@ void setup() {
     lcd.createChar(1, iconLocked);
     lcd.createChar(2, iconUnlocked);
     lcd.noBacklight();
-    pinMode(12, OUTPUT);
+    pinMode(A2, OUTPUT);
     pinMode(A3, OUTPUT);
     pinMode(A0, OUTPUT);
     pinMode(A1, OUTPUT);
-    pinMode(buzzerPin, OUTPUT);
-    digitalWrite(12, HIGH);
+    pinMode(9, OUTPUT);
+    digitalWrite(A2, HIGH);
     digitalWrite(A3, LOW);
     digitalWrite(A0, LOW);
     digitalWrite(A1, LOW);
@@ -101,6 +100,8 @@ void loop() {
 }
 
 void loadSettings() {
+    bool settingsChanged = false;
+
     EEPROM.get(0, secretCode);
     EEPROM.get(16, phoneOperator);
     EEPROM.get(32, delay_lock);
@@ -109,49 +110,53 @@ void loadSettings() {
     EEPROM.get(80, pass_timeout);
     EEPROM.get(96, delay_siren);
 
-    // Проверка и установка значений по умолчанию
     if (strlen(secretCode) != 4 || strspn(secretCode, "0123456789") != 4) {
         strcpy(secretCode, "0000");
         writeStringToEEPROM(0, secretCode);
-        //Serial.println("secretCode set to default: 0000");
+        settingsChanged = true;
     }
 
     if (strlen(phoneOperator) != 11 || strspn(phoneOperator, "0123456789") != 11) {
         strcpy(phoneOperator, "89000000000");
         writeStringToEEPROM(16, phoneOperator);
-        //Serial.println("phoneOperator set to default: 89000000000");
+        settingsChanged = true;
     }
 
     if (delay_lock <= 0) {
         delay_lock = 2500;
         EEPROM.put(32, delay_lock);
-        //Serial.println("delay_lock set to default: 2500");
+        settingsChanged = true;
     }
 
     if (delay_unlock <= 0) {
         delay_unlock = 500;
         EEPROM.put(48, delay_unlock);
-        //Serial.println("delay_unlock set to default: 500");
+        settingsChanged = true;
     }
 
     if (delay_pass <= 0) {
         delay_pass = 1000;
         EEPROM.put(64, delay_pass);
-        //Serial.println("delay_pass set to default: 1000");
+        settingsChanged = true;
     }
 
     if (pass_timeout <= 0) {
         pass_timeout = 30000;
         EEPROM.put(80, pass_timeout);
-        //Serial.println("pass_timeout set to default: 30000");
+        settingsChanged = true;
     }
 
     if (delay_siren <= 0) {
         delay_siren = 30000;
         EEPROM.put(96, delay_siren);
-        //Serial.println("delay_siren set to default: 30000");
+        settingsChanged = true;
+    }
+
+    if (settingsChanged) {
+        handleGetCommand("GET info");
     }
 }
+
 
 void writeStringToEEPROM(int address, const char* str) {
     for (int i = 0; i < strlen(str); i++) {
@@ -318,7 +323,7 @@ void lockSystem() {
     Locked = true;
     isDisplayed = false;
     showWaitScreen(delay_lock, A3);
-    digitalWrite(12, HIGH);
+    digitalWrite(A2, HIGH);
     digitalWrite(A3, LOW);
 }
 
@@ -429,7 +434,7 @@ void safeLockedLogic() {
             enterCode[0] = '\0';
             Locked = false;
             digitalWrite(A3, HIGH);
-            digitalWrite(12, LOW);
+            digitalWrite(A2, LOW);
         } else {
             mp3_play(3); //Неправильный пароль! Повторите попытку.
             enterCode[0] = '\0';
@@ -440,7 +445,7 @@ void safeLockedLogic() {
             lcd.setCursor(6, 1);
             showWaitScreen(delay_pass, 12);
             digitalWrite(A3, LOW);
-            digitalWrite(12, HIGH);
+            digitalWrite(A2, HIGH);
             for (byte i = 0; i < 5; i++) {
                 controlBuzzer(true, 250);
                 delay(250);
@@ -578,11 +583,11 @@ void checkSiren() {
 
 void controlBuzzer(bool turnOn, int soundDur) {
     if (turnOn) {
-        digitalWrite(buzzerPin, HIGH);
+        digitalWrite(9, HIGH);
         delay(soundDur);
-        digitalWrite(buzzerPin, LOW);
+        digitalWrite(9, LOW);
     } else {
-        digitalWrite(buzzerPin, LOW);
+        digitalWrite(9, LOW);
     }
 }
 
@@ -593,7 +598,7 @@ void activateAlarm() {
 
 void deactivateAlarm() {
     alarmActive = false;
-    digitalWrite(buzzerPin, LOW);
+    digitalWrite(9, LOW);
 }
 
 void checkAlarm() {
@@ -602,10 +607,10 @@ void checkAlarm() {
         
         if (currentMillis - alarmStartTime >= alarmInterval) {
 
-            if (digitalRead(buzzerPin) == LOW) {
-                digitalWrite(buzzerPin, HIGH);
+            if (digitalRead(9) == LOW) {
+                digitalWrite(9, HIGH);
             } else {
-                digitalWrite(buzzerPin, LOW);
+                digitalWrite(9, LOW);
             }
             alarmStartTime = currentMillis;
         }
