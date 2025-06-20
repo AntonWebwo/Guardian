@@ -11,21 +11,17 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 uint8_t iconLocked[8] = {0x0e, 0x11, 0x11, 0x1f, 0x1b, 0x1b, 0x1f};
 uint8_t iconUnlocked[8] = {0x0e, 0x10, 0x10, 0x1f, 0x1b, 0x1b, 0x1f};
 
-const uint8_t ROWS = 4;
-const uint8_t COLS = 3;
-char keys[ROWS][COLS] = { { '1', '2', '3' }, { '4', '5', '6' }, { '7', '8', '9' }, { '*', '0', '#' } };
-uint8_t colPins[COLS] = { 4, 3, 2 };
-uint8_t rowPins[ROWS] = { 8, 7, 6, 5 };
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+char keys[4][3] = { { '1', '2', '3' }, { '4', '5', '6' }, { '7', '8', '9' }, { '*', '0', '#' } };
+uint8_t colPins[3] = { 4, 3, 2 };
+uint8_t rowPins[4] = { 8, 7, 6, 5 };
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, 4, 3);
 
 char secretCode[5] = "";
 char phoneOperator[12] = "";
 int delay_lock, delay_unlock, delay_pass, pass_timeout, delay_siren;
 
-const int sensorsSize = 6;
-const int motionSize = 3;
-char sensors[sensorsSize][3];
-char motion[motionSize][3];
+char sensors[6][3];
+char motion[3][3];
 char gercoState[3];
 char waterLevel[3];
 int humidity, temperature;
@@ -40,11 +36,6 @@ char confirmCode[5] = "";
 
 bool isDisplayed = false;
 bool isNewCode = false;
-
-const int relayLightPin = A0;
-const int relaySirenPin = A1;
-const int redLedPin = A2;
-const int greenLedPin = A3;
 
 unsigned long sirenStartTime = 0;
 unsigned long lightStartTime = 0;
@@ -77,15 +68,15 @@ void setup() {
     lcd.createChar(1, iconLocked);
     lcd.createChar(2, iconUnlocked);
     lcd.noBacklight();
-    pinMode(redLedPin, OUTPUT);
-    pinMode(greenLedPin, OUTPUT);
-    pinMode(relayLightPin, OUTPUT);
-    pinMode(relaySirenPin, OUTPUT);
+    pinMode(12, OUTPUT);
+    pinMode(A3, OUTPUT);
+    pinMode(A0, OUTPUT);
+    pinMode(A1, OUTPUT);
     pinMode(buzzerPin, OUTPUT);
-    digitalWrite(redLedPin, HIGH);
-    digitalWrite(greenLedPin, LOW);
-    digitalWrite(relayLightPin, LOW);
-    digitalWrite(relaySirenPin, LOW);
+    digitalWrite(12, HIGH);
+    digitalWrite(A3, LOW);
+    digitalWrite(A0, LOW);
+    digitalWrite(A1, LOW);
     showStartupMessage();
 }
 
@@ -122,43 +113,43 @@ void loadSettings() {
     if (strlen(secretCode) != 4 || strspn(secretCode, "0123456789") != 4) {
         strcpy(secretCode, "0000");
         writeStringToEEPROM(0, secretCode);
-        Serial.println("secretCode set to default: 0000");
+        //Serial.println("secretCode set to default: 0000");
     }
 
     if (strlen(phoneOperator) != 11 || strspn(phoneOperator, "0123456789") != 11) {
         strcpy(phoneOperator, "89000000000");
         writeStringToEEPROM(16, phoneOperator);
-        Serial.println("phoneOperator set to default: 89000000000");
+        //Serial.println("phoneOperator set to default: 89000000000");
     }
 
     if (delay_lock <= 0) {
         delay_lock = 2500;
         EEPROM.put(32, delay_lock);
-        Serial.println("delay_lock set to default: 2500");
+        //Serial.println("delay_lock set to default: 2500");
     }
 
     if (delay_unlock <= 0) {
         delay_unlock = 500;
         EEPROM.put(48, delay_unlock);
-        Serial.println("delay_unlock set to default: 500");
+        //Serial.println("delay_unlock set to default: 500");
     }
 
     if (delay_pass <= 0) {
         delay_pass = 1000;
         EEPROM.put(64, delay_pass);
-        Serial.println("delay_pass set to default: 1000");
+        //Serial.println("delay_pass set to default: 1000");
     }
 
     if (pass_timeout <= 0) {
         pass_timeout = 30000;
         EEPROM.put(80, pass_timeout);
-        Serial.println("pass_timeout set to default: 30000");
+        //Serial.println("pass_timeout set to default: 30000");
     }
 
     if (delay_siren <= 0) {
         delay_siren = 30000;
         EEPROM.put(96, delay_siren);
-        Serial.println("delay_siren set to default: 30000");
+        //Serial.println("delay_siren set to default: 30000");
     }
 }
 
@@ -187,17 +178,20 @@ void showStartupMessage() {
 }
 
 void getSerialData() { 
+
     /* События при входящих SMS */
     // if (sim800l.available()) {
-    //     String inputSMS = sim800l.readStringUntil('\n');
-    //     if (sim800l.available()) {
-    //         String secondLine = sim800l.readStringUntil('\n');
-    //         Serial.println(secondLine);
-    //         if (secondLine.startsWith("UNLOCK")) {
-    //             showUnlockMessage();
-    //         }
+    //     String inputSMS = sim800l.readStringUntil('\n'); // Читаем первую строку
+    //     String secondLine = sim800l.readStringUntil('\n'); // Читаем вторую строку
+    //     String thirdLine = sim800l.readStringUntil('\n'); // Читаем третью строку
+
+    //     Serial.println(thirdLine); // Выводим третью строку
+
+    //     if (thirdLine.startsWith("UNLOCK")) {
+    //         showUnlockMessage();
     //     }
     // }
+
     if (Serial.available() > 0) {
         String inputData = Serial.readStringUntil('\n');
         inputData.trim();
@@ -210,12 +204,12 @@ void getSerialData() {
             gercoState[0] = inputData[2];
             gercoState[1] = inputData[3];
             gercoState[2] = '\0';
-            for (int i = 0; i < sensorsSize; i++) {
+            for (int i = 0; i < 6; i++) {
                 sensors[i][0] = inputData[4 + i * 2];
                 sensors[i][1] = inputData[5 + i * 2];
                 sensors[i][2] = '\0';
             }
-            for (int i = 0; i < motionSize; i++) {
+            for (int i = 0; i < 3; i++) {
                 motion[i][0] = inputData[16 + i * 2];
                 motion[i][1] = inputData[17 + i * 2];
                 motion[i][2] = '\0';
@@ -235,86 +229,47 @@ void handleSetCommand(const String& inputData) {
     if (equalIndex > 0) {
         String variableName = inputData.substring(4, equalIndex);
         String value = inputData.substring(equalIndex + 1);
+        variableName.trim();
+        value.trim();
+        
         if (variableName == "secretCode") {
-            value.toCharArray(secretCode, 5);
+            value.toCharArray(secretCode, sizeof(secretCode));
             writeStringToEEPROM(0, secretCode);
-            Serial.println("writeStringToEEPROM [0]" + String(secretCode));
         } else if (variableName == "phoneOperator") {
-            value.toCharArray(phoneOperator, 12);
+            value.toCharArray(phoneOperator, sizeof(phoneOperator));
             writeStringToEEPROM(16, phoneOperator);
-            Serial.println("writeStringToEEPROM [16]" + String(phoneOperator));
         } else if (variableName == "delay_lock") {
             delay_lock = value.toInt();
             EEPROM.put(32, delay_lock);
-            Serial.println("writeStringToEEPROM [32]" + String(delay_lock));
         } else if (variableName == "delay_unlock") {
             delay_unlock = value.toInt();
             EEPROM.put(48, delay_unlock);
-            Serial.println("writeStringToEEPROM [48]" + String(delay_unlock));
         } else if (variableName == "delay_pass") {
             delay_pass = value.toInt();
             EEPROM.put(64, delay_pass);
-            Serial.println("writeStringToEEPROM [64]" + String(delay_pass));
         } else if (variableName == "pass_timeout") {
             pass_timeout = value.toInt();
             EEPROM.put(80, pass_timeout);
-            Serial.println("writeStringToEEPROM [80]" + String(pass_timeout));
         } else if (variableName == "delay_siren") {
             delay_siren = value.toInt();
             EEPROM.put(96, delay_siren);
-            Serial.println("writeStringToEEPROM [96]" + String(delay_siren));
-        }
-    }
+        } 
+
+        Serial.println("Write to EEPROM: " + variableName + " = " + value);
+    } 
 }
 
 void handleGetCommand(const String& inputData) {
     String variableName = inputData.substring(4);
     if (variableName == "info") {
-        Serial.print("delay_lock: "); Serial.println(delay_lock);
-        Serial.print("delay_unlock: "); Serial.println(delay_unlock);
-        Serial.print("delay_pass: "); Serial.println(delay_pass);
-        Serial.print("pass_timeout: "); Serial.println(pass_timeout);
-        Serial.print("delay_siren: "); Serial.println(delay_siren);
-        Serial.print("secretCode: "); Serial.println(secretCode);
-        Serial.print("phoneOperator: "); Serial.println(phoneOperator);
-    } else if (variableName == "eeprom") {
-        printEEPROMTable();
+        Serial.println("delay_lock: " + String(delay_lock));
+        Serial.println("delay_unlock: " + String(delay_unlock));
+        Serial.println("delay_pass: " + String(delay_pass));
+        Serial.println("pass_timeout: " + String(pass_timeout));
+        Serial.println("delay_siren: " + String(delay_siren));
+        Serial.println("secretCode: " + String(secretCode));
+        Serial.println("phoneOperator: " + String(phoneOperator));
     }
-}
-
-void printEEPROMTable() {
-  const int bytesPerRow = 16;
-  int eepromSize = EEPROM.length();
-  Serial.println(F("EEPROM HEX Dump:"));
-  Serial.print(F("Addr  "));
-  for (int i = 0; i < bytesPerRow; i++) {
-    if (i < 16) {
-      Serial.print(F(" "));
-      if (i < 0x10) Serial.print("0");
-      Serial.print(i, HEX);
-    }
-  }
-  Serial.println();
-  Serial.println(F("------------------------------------------------"));
-  for (int rowStart = 0; rowStart < eepromSize; rowStart += bytesPerRow) {
-    Serial.print("0x");
-    if (rowStart < 0x10) Serial.print("00");
-    else if (rowStart < 0x100) Serial.print("0");
-    Serial.print(rowStart, HEX);
-    Serial.print(":");
-    for (int col=0; col < bytesPerRow; col++) {
-      int addr = rowStart + col;
-      if (addr < eepromSize) {
-        byte val = EEPROM.read(addr);
-        Serial.print(" ");
-        if (val < 0x10) Serial.print('0');
-        Serial.print(val, HEX);
-      } else {
-        Serial.print("   ");
-      }
-    }
-    Serial.println();
-  }
 }
 
 void displayTemperature() {
@@ -362,9 +317,9 @@ void lockSystem() {
     lcd.write(1);
     Locked = true;
     isDisplayed = false;
-    showWaitScreen(delay_lock, greenLedPin);
-    digitalWrite(redLedPin, HIGH);
-    digitalWrite(greenLedPin, LOW);
+    showWaitScreen(delay_lock, A3);
+    digitalWrite(12, HIGH);
+    digitalWrite(A3, LOW);
 }
 
 void enterNewCode() {
@@ -414,7 +369,7 @@ void confirmNewCode() {
                     lcd.write(1);
                     lcd.print(" NEW CODE: ");
                     lcd.print(secretCode);
-                    digitalWrite(greenLedPin, HIGH);
+                    digitalWrite(A3, HIGH);
                     delay(1000);
                     lastHumidity = -1;
                     lastTemperature = -1;
@@ -438,7 +393,7 @@ void safeLockedLogic() {
 
     if (!isDisplayed) {
         lcd.noBacklight();
-        digitalWrite(relayLightPin, LOW);
+        digitalWrite(A0, LOW);
         mp3_play(2); //Объект установлен под охрану!
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -464,17 +419,17 @@ void safeLockedLogic() {
         }
     } else {
         isVerifying = true;
-        showWaitScreen(delay_unlock, redLedPin);
+        showWaitScreen(delay_unlock, 12);
         if (strcmp(secretCode, enterCode) == 0) {
-            digitalWrite(relaySirenPin, LOW);
-            digitalWrite(relayLightPin, LOW);
+            digitalWrite(A1, LOW);
+            digitalWrite(A0, LOW);
             sirenActive = false;
             lightActive = false;
             showUnlockMessage();
             enterCode[0] = '\0';
             Locked = false;
-            digitalWrite(greenLedPin, HIGH);
-            digitalWrite(redLedPin, LOW);
+            digitalWrite(A3, HIGH);
+            digitalWrite(12, LOW);
         } else {
             mp3_play(3); //Неправильный пароль! Повторите попытку.
             enterCode[0] = '\0';
@@ -483,9 +438,9 @@ void safeLockedLogic() {
             lcd.write(1);
             lcd.print(" ACCESS DENIED!");
             lcd.setCursor(6, 1);
-            showWaitScreen(delay_pass, redLedPin);
-            digitalWrite(greenLedPin, LOW);
-            digitalWrite(redLedPin, HIGH);
+            showWaitScreen(delay_pass, 12);
+            digitalWrite(A3, LOW);
+            digitalWrite(12, HIGH);
             for (byte i = 0; i < 5; i++) {
                 controlBuzzer(true, 250);
                 delay(250);
@@ -512,8 +467,8 @@ void showWaitScreen(int delayMillis, int ledPin) {
 void showUnlockMessage() {
     deactivateAlarm();
     mp3_play(4); //Внимание! Объект снят с охраны!
-    digitalWrite(relaySirenPin, LOW);
-    digitalWrite(relayLightPin, HIGH);
+    digitalWrite(A1, LOW);
+    digitalWrite(A0, HIGH);
     sirenActive = false;
     lightActive = false;
     lastHumidity = -1;
@@ -543,7 +498,7 @@ void monitorAlarmSystem() {
         if (strcmp(gercoState, "01") == 0 && !lightActive) {
             sendAlert("! Door is open !");
             mp3_play(5); //Внимание! Дверь открыта. Введите пароль.
-            digitalWrite(relayLightPin, HIGH);
+            digitalWrite(A0, HIGH);
             lightStartTime = millis();
             lightActive = true;
             lcd.backlight();
@@ -556,13 +511,13 @@ void monitorAlarmSystem() {
         if (lightActive && (millis() - lightStartTime >= pass_timeout)) {
             sendAlert("!!!PASS ALARM!!!");
             mp3_play(6); // Тревога! Проникновение на объект!
-            digitalWrite(relayLightPin, LOW);
+            digitalWrite(A0, LOW);
             lightActive = false;
             activateSiren();
             lcd.noBacklight();
         }
 
-        for (int i = 0; i < motionSize; i++) {
+        for (int i = 0; i < 3; i++) {
             if (strcmp(motion[i], "01") ==  0 && !sirenActive) {
                 sendAlert("!!MOTION ALARM!!");
                 mp3_play(7); // Тревога! Обнаружено движение!
@@ -573,7 +528,7 @@ void monitorAlarmSystem() {
         }
 
         int activeSensors = 0;
-        for (int i = 0; i < sensorsSize; i++) {
+        for (int i = 0; i < 6; i++) {
             if (strcmp(sensors[i], "01") == 0) {
                 activeSensors++;
             }
@@ -607,7 +562,7 @@ void monitorAlarmSystem() {
 void activateSiren() {
     if (!sirenActive) {
         activateAlarm();
-        digitalWrite(relaySirenPin, HIGH);
+        digitalWrite(A1, HIGH);
         sirenStartTime = millis();
         sirenActive = true;
     }
@@ -615,7 +570,7 @@ void activateSiren() {
 
 void checkSiren() {
     if (sirenActive && (millis() - sirenStartTime >= delay_siren)) {
-        digitalWrite(relaySirenPin, LOW);
+        digitalWrite(A1, LOW);
         deactivateAlarm();
         sirenActive = false;
     }
