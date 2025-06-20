@@ -126,7 +126,7 @@
    * `SET secretCode=1234`
    * `SET phoneOperator=89123456789`
    * `GET info` - выводит текущие настройки в Serial Monitor
-   * `GET eeprom` - выводит дамп EEPROM в Serial Monitor
+   * ~~`GET eeprom` - выводит дамп EEPROM в Serial Monitor~~
 
 #### Логика работы
 
